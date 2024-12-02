@@ -2,19 +2,21 @@
   "name": "sql_query_formatting",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "build": "webpack"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "codemirror": "^6.0.1",
+    "codemirror": "^5.65.18",
     "node-sql-parser": "^5.3.4"
   },
   "devDependencies": {
-    "gh-pages": "^6.2.0"
+    "css-loader": "^7.1.2",
+    "gh-pages": "^6.2.0",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4"
   }
 }

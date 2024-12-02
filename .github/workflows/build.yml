@@ -1,0 +1,36 @@
+name: Build Project
+
+on:
+  push:
+    branches:
+      - main      # Trigger this action when code is pushed to the 'main' branch
+  pull_request:
+    branches:
+      - main      # Trigger this action on PRs to the 'main' branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest    # Use the latest Ubuntu for the build environment
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3    # Checkout the repository code to the runner
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3    # Set up Node.js
+        with:
+          node-version: '16'    # Specify the Node.js version you want to use
+
+      - name: Install dependencies
+        run: |
+          npm install    # Install all the required npm dependencies
+
+      - name: Build the project
+        run: |
+          npm run build    # Run Webpack to build the project
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle
+          path: dist/bundle.js    # Upload the generated bundle.js file as an artifact

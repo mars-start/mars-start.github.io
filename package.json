@@ -1,0 +1,20 @@
+{
+  "name": "sql_query_formatting",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "codemirror": "^6.0.1",
+    "node-sql-parser": "^5.3.4"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.2.0"
+  }
+}

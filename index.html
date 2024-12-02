@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
+    <script src="https://unpkg.com/node-sql-parser/umd/mysql.umd.js"></script>
+    <style>
+        html {
+            /* defer to OS preference */
+            color-scheme: dark light;
+            /* override, assuming the theme toggler sets a data-theme attribute */
+            &[data-theme=light] { color-scheme: light; }
+            &[data-theme=dark] { color-scheme: dark; }
+        }
+        .CodeMirror-scroll {
+            border-left: solid 1px;
+        }
+        .content {
+            position: absolute;
+            min-width: 30%;
+            height: 100vh;
+        }
+        .copy-code-wrap {
+            height: 34px;
+            width: 34px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            cursor: pointer;
+        }
+        .copy-code {
+            height: 32px;
+            width: 32px;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: #339af0;
+            border-radius: 50%;
+            z-index: 10;
+            transition: 0.2s;
+        }
+        .copy-code::after {
+            font-weight: 600;
+            font-size: 16px;
+            content: "📎";
+            color: #fff;
+            position: absolute;
+            top: 6px;
+            left: 6px;
+        }
+        .copy-code-wrap:active .copy-code {
+            transform: translate(0, 0) scale(0.9);
+        }
+        .animate {
+            transform: translate(0, 0) scale(1.12);
+        }
+
+        .tooltip {
+            font-size: 15px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+    <title>SQL query formatting</title>
+</head>
+<body style="background-color: #282a36 !important;
+    color: #f8f8f2 !important;">
+<div style="display: flex; flex-wrap: wrap;">
+    <section style="flex: 1; max-width: 15%;">
+        <label for="dbSelector">Select Database:</label>
+        <select id="dbSelector" style="width: 50%">
+            <option value="admin">Admin</option>
+            <option value="crm">CRM</option>
+            <option value="casino">Casino</option>
+        </select>
+        <button id="selectAllButton">select all</button>
+        <button id="deselectAllButton">clear all</button>
+        <div id="checkboxContainer"></div>
+    </section>
+    <section style="flex: 1; max-width: 40%;">
+        <label for="sqlTemplate">SQL Template:</label>
+        <textarea  id="sqlTemplate" rows="10" cols="80"></textarea>
+    </section>
+    <section style="flex: 1; max-width: 45%;">
+        <div class="content">
+            <div class="copy-code-wrap">
+                <div id="copy-code" class="copy-code"></div>
+            </div>
+            <label for="queriesContainer">SQL result:</label>
+            <textarea id="queriesContainer" ></textarea>
+        </div>
+    </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/sql/sql.min.js"></script>
+<script>
+    const config = [
+
+    ];
+
+    const sqlTemplateEl = document.getElementById("sqlTemplate");
+    const editor = CodeMirror.fromTextArea(sqlTemplateEl, {
+        mode: "text/x-sql",
+        theme: "dracula",
+        autoRefresh: true,
+        firstLineNumber: 1,
+        lineNumbers: true,
+        smartIndent: true,
+        lineWrapping: true,
+        indentWithTabs: true,
+        refresh: true,
+
+    });
+    editor.setSize(500, 700);
+    document.getElementById('dbSelector').addEventListener('change', function () {
+        const selectedDb = this.value;
+        const checkboxContainer = document.getElementById('checkboxContainer');
+        checkboxContainer.innerHTML = ''; // Clear existing checkboxes
+
+        if (selectedDb === 'crm') {
+            //one Db for crm
+            appendCheckbox('casinosupport', checkboxContainer);
+        } else {
+            config.forEach(item => {
+                appendCheckbox(item[selectedDb], checkboxContainer);
+            });
+        }
+
+        refreshValue();
+    });
+
+    function appendCheckbox(name, checkboxContainer) {
+        if (name) {
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = name;
+            checkbox.name = name;
+            checkbox.checked = true; // Default to checked
+
+            const label = document.createElement('label');
+            label.htmlFor = name;
+            label.appendChild(document.createTextNode(name));
+
+            const div = document.createElement('div');
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            checkbox.addEventListener('change', function () {
+                refreshValue();
+            });
+            checkboxContainer.appendChild(div);
+        }
+    }
+    // Select all checkboxes
+    document.getElementById('selectAllButton').addEventListener('click', function () {
+        const checkboxes = document.querySelectorAll('#checkboxContainer input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        refreshValue();
+    });
+
+    // Deselect all checkboxes
+    document.getElementById('deselectAllButton').addEventListener('click', function () {
+        const checkboxes = document.querySelectorAll('#checkboxContainer input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        refreshValue();
+    });
+    const queriesContainer = document.getElementById('queriesContainer');
+    const output = CodeMirror.fromTextArea(queriesContainer, {
+        mode: "text/x-sql",
+        theme: "dracula",
+        autoRefresh: true,
+        firstLineNumber: 1,
+        lineNumbers: true,
+        smartIndent: true,
+        lineWrapping: true,
+        indentWithTabs: true,
+        refresh: true
+    });
+    output.setSize(500, 700);
+
+    editor.on("change", function() {
+        sqlTemplateEl.innerText = editor.getValue();
+        refreshValue();
+    });
+
+    function refreshValue() {
+        const selectedDb = document.getElementById('dbSelector').value;
+        const sqlTemplate = editor.getValue();
+        output.setValue('');
+        const tablets = getAllTableNames(sqlTemplate);
+
+        const checkboxes = document.querySelectorAll('#checkboxContainer input[type="checkbox"]:checked');
+        let result = '';
+        checkboxes.forEach(checkbox => {
+            const replacement = tablets.map(function (p1) {
+                return `\`${checkbox.name}\`` + '.' + `\`${p1}\``;
+            });
+
+            let sql = replaceTableNames(sqlTemplate, tablets, replacement);
+
+            if (sql && sql !== "undefined" && replacement.length) {
+
+                result += `\n -- ${selectedDb} ${checkbox.name}\n`;
+                result += sql;
+            }
+        });
+        output.setValue(result);
+    }
+    function replaceTableNames(sqlQuery, tableNames, replacement) {
+        tableNames.sort((a, b) => b.length - a.length);
+        replacement.sort((a, b) => b.length - a.length);
+        console.log(tableNames, replacement);
+        tableNames.forEach((tableName, index) => {
+            const regex = new RegExp(`\\b${tableName}\\b`, 'gi');
+            sqlQuery = sqlQuery.replace(regex, replacement[index]);
+        });
+
+        return sqlQuery;
+    }
+
+    document.getElementById('copy-code').addEventListener('click', function (e) {
+        if (e.which == 1) {
+            // write the text to the clipboard
+            navigator.clipboard.writeText(output.getValue());
+        }
+    });
+    function getAllTableNames(sqlQuery) {
+        try {
+            const parser = new NodeSQLParser.Parser()
+
+            const tableList = parser.tableList(sqlQuery);
+            const tableNames = new Set();
+            for (const key in tableList) {
+                tableNames.add(tableList[key].split('::')[2]);
+            }
+
+            return Array.from(tableNames);
+        } catch (error) {
+            console.error('Error parsing SQL:', error);
+            return [];
+        }
+    }
+
+    // Trigger change event on page load to populate checkboxes initially
+    document.getElementById('dbSelector').dispatchEvent(new Event('change'));
+</script>
+</body>
+</html>
+git@github.com:mars-start/mars-start.github.io.git
